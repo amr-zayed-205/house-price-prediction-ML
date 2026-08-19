@@ -4,8 +4,7 @@ venv/
 env/
 pyvenv.cfg
 
-notebooks/data/
-*.csv
+notebooks/data/*.csv
 
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
