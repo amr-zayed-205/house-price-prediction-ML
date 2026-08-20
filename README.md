@@ -1,4 +1,8 @@
-# 🏠 House Price Prediction (End-to-End ML Web App)
+# 🏠 House Price Predictor
+
+An end-to-end Machine Learning web app that predicts residential property prices in India (₹ INR) from details like area, floor, bathrooms, and location.
+
+It's made of three parts: a **React** form where you enter property details, a **FastAPI** backend that runs the model, and a **Random Forest** model trained on ~187,000 real listings.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -7,74 +11,119 @@
 [![Scikit-Learn](https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.x-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 
-An end-to-end Machine Learning web application that accurately predicts residential property prices in India by analyzing structural, geographic, and transactional attributes. Built with a production-ready **Scikit-Learn Pipeline**, served via a high-performance **FastAPI** backend, and consumed through an interactive **React + TypeScript (Vite)** dashboard.
+---
+
+## 📖 Table of Contents
+
+1. [Demo](#-demo)
+2. [How It Works](#-how-it-works)
+3. [The Dataset](#-the-dataset)
+4. [Data Exploration](#-data-exploration)
+5. [Model Performance](#-model-performance)
+6. [Project Structure](#-project-structure)
+7. [Getting Started](#-getting-started)
+8. [API Reference](#-api-reference)
+9. [Author](#-author)
 
 ---
 
-## 📌 Problem Statement & Architecture
+## 🎬 Demo
 
-Valuing residential real estate accurately is challenging due to non-linear interactions between unit size, floor levels, locality premiums, and property condition. This project automates real estate valuation by transforming raw, messy property data into reliable price estimates in Indian Rupees (₹ INR), exposed via a clean microservice architecture.
+Fill in the property form, hit **Predict Price**, and get an instant valuation.
+
+<table>
+<tr>
+<td width="50%" align="center"><b>Input Form</b></td>
+<td width="50%" align="center"><b>Prediction Result</b></td>
+</tr>
+<tr>
+<td><img src="assets/ui_form.png" alt="Property input form" width="100%"></td>
+<td><img src="assets/ui_result.png" alt="Predicted price result" width="100%"></td>
+</tr>
+</table>
+
+---
+
+## ⚙️ How It Works
 
 ```text
-       ┌────────────────────────────────────────────────────────┐
-       │   React 18 + TypeScript Client (Vite @ Port 5173)      │
-       │   - Dynamic Form Validation & Top Locality Selectors   │
-       └───────────────────────────┬────────────────────────────┘
-                                   │ HTTP POST /predict (JSON)
-                                   ▼
-       ┌────────────────────────────────────────────────────────┐
-       │        FastAPI REST API Service (Port 8000)            │
-       │   - Pydantic V2 Request Validation & Error Handling    │
-       └───────────────────────────┬────────────────────────────┘
-                                   │
-                                   ▼
-       ┌────────────────────────────────────────────────────────┐
-       │        Trained Pipeline Artifact (house_price.pkl)     │
-       │   - Feature Mapping & Encoding                         │
-       │   - Random Forest Regressor Inference                  │
-       └────────────────────────────────────────────────────────┘
+   React + TypeScript Form            FastAPI Backend              Trained Model
+   (user enters property   ─POST──▶   (validates input,   ──────▶  (Random Forest
+    details in the browser)            calls the model)             predicts price)
 ```
 
----
-
-## 📊 Dataset Summary
-
-* **Source:** [House Price Dataset (Juhi Bhojani)](https://www.kaggle.com/datasets/juhibhojani/house-price) (~187,000 property listings across India).
-* **Target Variable:** `price_clean` (Normalized to continuous numerical INR value).
-* **Key Features:** 
-  * `carpet_area_sqft`: Usable floor area in square feet.
-  * `floor_num`: Physical floor level extracted from floor fractions (e.g., "3 out of 10").
-  * `bathroom` & `balcony`: Amenity and layout counters.
-  * `location_grouped`: High-cardinality geographic locality (Top 50 + "other").
-  * `Furnishing`, `Transaction`, `Ownership`, `facing`: Categorical structural and legal attributes.
+1. The user fills in property details in the React form.
+2. The frontend sends the data as JSON to the FastAPI backend (`POST /predict`).
+3. FastAPI validates the request, then passes it through the saved Scikit-Learn pipeline (`house_price.pkl`).
+4. The pipeline encodes the features and the Random Forest model returns a predicted price, which is sent back and shown to the user.
 
 ---
 
-## ⚙️ Key Engineering & ML Highlights
+## 📊 The Dataset
 
-### 1. Robust Data Cleaning & Regex Parsing
-* **Unit Standardization:** Parsed heterogeneous target price strings spanning values denominated in `Lac` (x$10^5$) and `Cr` (x$10^7$) into unified numeric float values.
-* **Area Normalization:** Parsed `Carpet Area` and `Super Area` (e.g., "1000 sqft", "140 sqm", "1,200 sq. yards") to standardize all units into `sqft`. Used `Super Area` as a fallback for missing `Carpet Area` values.
-* **Floor Level Extraction:** Regex parsed complex floor descriptions (e.g., `"3 out of 10"`, `"Ground"`, `"Basement"`) into discrete numeric floor levels (e.g., Ground -> 0, Basement -> -1).
-* **Outlier Truncation:** Mitigated extreme price anomalies by clipping the price-per-square-foot distribution between the 1st and 99th percentiles (dropping ~3.2k extreme rows).
+* **Source:** [House Price Dataset by Juhi Bhojani (Kaggle)](https://www.kaggle.com/datasets/juhibhojani/house-price) — ~187,000 property listings across India.
+* **Target:** `price_clean` — the property price in INR.
 
-### 2. Leakage-Free Preprocessing Pipeline
-* **High-Cardinality Management:** Grouped categorical locations and societies into the Top 50 high-frequency categories, collapsing long-tail sparse entries into a fallback `"other"` category to prevent dimensionality explosion.
-* **ColumnTransformer Integration:** Combined `StandardScaler` for numeric scaling, `SimpleImputer` (median/most_frequent) for missing values, and `OneHotEncoder(handle_unknown='ignore')` for categorical attributes directly into a serializable pipeline artifact.
+**Features used:**
+
+| Feature | Description |
+| :--- | :--- |
+| `carpet_area_sqft` | Usable floor area in square feet |
+| `floor_num` | Floor level (Ground → 0, Basement → -1, etc.) |
+| `bathroom` | Number of bathrooms |
+| `balcony` | Number of balconies |
+| `location_grouped` | Top 50 localities, everything else grouped as `"other"` |
+| `Furnishing` | Unfurnished / Semi-Furnished / Furnished |
+| `Transaction` | New / Resale |
+| `Ownership` | Freehold / Leasehold / etc. |
+| `facing` | Direction the property faces |
+
+**Cleaning highlights:**
+* Standardized prices written in `Lac` (×10⁵) and `Cr` (×10⁷) into one numeric column.
+* Normalized area values from sqft / sqm / sq. yards into a single `sqft` column.
+* Parsed messy floor text (e.g. `"3 out of 10"`, `"Ground"`) into clean numeric floor levels.
+* Removed extreme price-per-sqft outliers (below the 1st and above the 99th percentile — about 3.2k rows).
+* Grouped rare locations/societies into an `"other"` bucket to avoid an explosion of categories.
 
 ---
 
-## 📈 Model Training & Comparison
+## 🔎 Data Exploration
 
-Three regression models were evaluated on a held-out test split (20%) using identical cross-validated feature transformations:
+**Prices are heavily right-skewed** — most homes cluster in a lower range with a long tail of expensive properties, which is why the model works on a log-friendly, tree-based approach.
 
-| Model | MAE (INR) | RMSE (INR) | $R^2$ Score | Status |
+<img src="assets/price_distribution.png" alt="Price distribution" width="85%">
+
+**Bigger area generally means a higher price**, though the spread at every size shows that area alone doesn't decide the price — location and amenities matter too.
+
+<img src="assets/price_vs_area.png" alt="Price vs carpet area" width="85%">
+
+**Location drives price the most.** Mumbai, Gurgaon, and Panchkula top the list of the priciest cities.
+
+<img src="assets/price_by_location.png" alt="Average price by location" width="85%">
+
+**Furnishing and bathroom count both matter.** Fully furnished listings trend higher, and price climbs steadily as bathroom count increases.
+
+<img src="assets/furnishing_and_bathrooms.png" alt="Price by furnishing status and bathrooms" width="85%">
+
+---
+
+## 📈 Model Performance
+
+Three models were trained and compared on a 20% held-out test set:
+
+| Model | MAE (INR) | RMSE (INR) | R² Score | Status |
 | :--- | :---: | :---: | :---: | :---: |
-| **Random Forest Regressor** | **₹ 1,114,024** | **₹ 5,306,273** | **0.8492** | **Selected Winner** 🏆 |
+| **Random Forest Regressor** | **₹ 1,114,024** | **₹ 5,306,273** | **0.8492** | 🏆 **Selected** |
 | Gradient Boosting Regressor | ₹ 2,613,991 | ₹ 6,134,626 | 0.7985 | Evaluated |
 | Linear Regression (Baseline) | ₹ 4,521,805 | ₹ 8,407,485 | 0.6214 | Baseline |
 
-> **Cross-Validation:** 5-Fold CV Mean $R^2 = 0.8801 \ (\pm 0.0243)$. Random Forest was selected for production due to superior handling of non-linear interactions across floor levels, carpet areas, and location tiers.
+> 5-Fold Cross-Validation Mean R² = **0.8801 (± 0.0243)**
+
+Random Forest won because it handles the non-linear relationships between floor level, area, and location tiers much better than the linear baseline.
+
+<img src="assets/predicted_vs_actual.png" alt="Predicted vs actual price" width="80%">
+
+*Points close to the red diagonal line are accurate predictions — the model tracks actual prices well across most of the range.*
 
 ---
 
@@ -82,109 +131,69 @@ Three regression models were evaluated on a held-out test split (20%) using iden
 
 ```text
 house-price-project/
-├── backend/
+├── backend/                 # FastAPI service
 │   ├── app/
-│   │   ├── api/
-│   │   │   └── routes/
-│   │   │       └── prediction.py     # /health & /predict endpoints
-│   │   ├── core/
-│   │   │   └── config.py            # Settings configuration (Pydantic)
-│   │   ├── schemas/
-│   │   │   └── prediction.py        # Request/Response schemas
-│   │   ├── services/
-│   │   │   ├── preprocessing.py     # Input sanitation & locality mapping
-│   │   │   └── inference.py         # Model loading & inference runner
-│   │   └── main.py                  # App entry point, CORS & lifespan
+│   │   ├── api/routes/      # /predict and /health endpoints
+│   │   ├── core/            # App configuration
+│   │   ├── schemas/         # Request/response models (Pydantic)
+│   │   └── services/        # Preprocessing + model inference
 │   ├── models/
-│   │   └── house_price.pkl          # Serialized Scikit-Learn Pipeline artifact
-│   ├── tests/
-│   │   └── test_prediction.py       # Automated endpoint & payload tests
-│   ├── Dockerfile                   # Production container definition
-│   └── requirements.txt             # Pinned backend dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── api/
-│   │   │   └── predictionClient.ts  # Typed HTTP client
-│   │   ├── components/
-│   │   │   └── PredictionForm.tsx   # Dynamic property input form
-│   │   ├── pages/
-│   │   │   ├── HomePage.tsx         # Main entry view
-│   │   │   ├── ResultPage.tsx       # Formatted output & summary view
-│   │   │   └── NotFoundPage.tsx     # Fallback 404 handler
-│   │   ├── types/
-│   │   │   └── prediction.ts        # TypeScript data interfaces
-│   │   ├── locations.json           # Cached top locality registry
-│   │   ├── App.tsx                  # Client router config
-│   │   └── main.tsx
-│   ├── package.json
-│   └── tsconfig.json
+│   │   └── house_price.pkl  # Trained Scikit-Learn pipeline
+│   ├── tests/                # Automated tests
+│   └── requirements.txt
+├── frontend/                 # React + TypeScript client
+│   └── src/
+│       ├── api/              # Typed HTTP client
+│       ├── components/       # Prediction form
+│       ├── pages/            # Home / Result / 404
+│       └── types/            # TypeScript interfaces
 ├── notebooks/
-│   ├── data/                        # Raw dataset directory (.gitignored)
-│   └── house_price_model.ipynb      # EDA, data cleaning & pipeline export
-├── .gitignore
+│   └── house_price_model.ipynb   # EDA, cleaning, model training
 └── README.md
 ```
 
 ---
 
-## 🚀 Installation & How to Run
+## 🚀 Getting Started
 
-### 1. Prerequisites
+### Prerequisites
 * Python 3.11+
-* Node.js 18+ & npm
+* Node.js 18+ and npm
 * Git
 
-### 2. Dataset Setup
-Download the dataset using the Kaggle CLI or extract it into `notebooks/data/`:
+### 1. Download the dataset
 ```bash
 kaggle datasets download -d juhibhojani/house-price -p notebooks/data --unzip
 ```
 
-### 3. Backend Setup (FastAPI)
+### 2. Run the backend (FastAPI)
 ```bash
-# Navigate to backend directory
 cd backend
-
-# Create & activate virtual environment
 python -m venv .venv
-# On Windows:
-.venv\Scripts\activate
-# On Linux/macOS:
-# source .venv/bin/activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 
-# Install dependencies
 pip install -r requirements.txt
-
-# Run automated tests
-pytest tests/ -v
-
-# Launch the API server
+pytest tests/ -v                # optional: run tests
 uvicorn app.main:app --reload --port 8000
 ```
-* **Interactive Swagger Docs:** `http://localhost:8000/docs`
-* **Health Check Endpoint:** `http://localhost:8000/health`
+* API docs: `http://localhost:8000/docs`
+* Health check: `http://localhost:8000/health`
 
-### 4. Frontend Setup (React + Vite)
+### 3. Run the frontend (React + Vite)
 ```bash
-# In a separate terminal, navigate to frontend directory
 cd frontend
-
-# Install Node dependencies
 npm install
-
-# Start Vite development server
 npm run dev
 ```
-* **Web Application Interface:** `http://localhost:5173`
+* App: `http://localhost:5173`
 
 ---
 
 ## 🔌 API Reference
 
 ### `POST /predict`
-Submits structural parameters to generate real estate valuation.
 
-**Request Payload (`application/json`):**
+**Request:**
 ```json
 {
   "carpet_area_sqft": 1200.0,
@@ -199,7 +208,7 @@ Submits structural parameters to generate real estate valuation.
 }
 ```
 
-**Response (`200 OK`):**
+**Response:**
 ```json
 {
   "predicted_price": 9850000.0
@@ -208,6 +217,7 @@ Submits structural parameters to generate real estate valuation.
 
 ---
 
-## 🧑‍💻 Author & Contributions
+## 🧑‍💻 Author
 
-Built with clean architecture, robust ML engineering principles, and production readiness in mind. Contributions, issues, and feature requests are welcome!
+Built with clean architecture and production-ready ML engineering in mind.
+Contributions, issues, and feature requests are always welcome — feel free to open a PR! ⭐
